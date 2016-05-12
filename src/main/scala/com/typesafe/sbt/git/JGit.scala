@@ -13,7 +13,7 @@ import org.eclipse.jgit.revwalk.filter.RevFilter
 import org.eclipse.jgit.revwalk.{RevCommit, RevFlag, RevFlagSet, RevWalk}
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 
-import scala.collection.mutable
+import scala.collection.JavaConversions._
 import scala.util.Try
 import scala.util.control.Breaks
 
@@ -153,89 +153,78 @@ class FirstParentDescribeCommand(repo_ : Repository) extends GitCommand[String](
     try {
       checkCallable()
       if (target == null) setTarget(HEAD)
-      val tags: java.util.Map[ObjectId, Ref] = new java.util.HashMap[ObjectId, Ref]
-      import scala.collection.JavaConversions._
+      val tags = new java.util.HashMap[ObjectId, Ref]
       for (r <- repo.getRefDatabase.getRefs(R_TAGS).values) {
-        var key: ObjectId = repo.peel(r).getPeeledObjectId
+        var key = repo.peel(r).getPeeledObjectId
         if (key == null) key = r.getObjectId
         tags.put(key, r)
       }
-      val allFlags: RevFlagSet = new RevFlagSet
-      class Candidate(val commit: RevCommit, val tag: Ref) {
-        this.flag = w.newFlag(tag.getName)
+      val allFlags = new RevFlagSet
+      class Candidate(commit: RevCommit, tag: Ref) {
+        var depth = 0
+        val flag = w.newFlag(tag.getName)
+
         allFlags.add(flag)
         w.carry(flag)
         commit.add(flag)
         commit.carry(flag)
-        final var flag: RevFlag = null
-        var depth: Int = 0
 
-        def reaches(c: RevCommit): Boolean = {
-          c.has(flag)
-        }
+        def reaches(c: RevCommit): Boolean = c.has(flag)
 
-        @throws[IOException]
         def describe(tip: ObjectId): String = {
           s"${tag.getName.substring(R_TAGS.length)}-$depth-g${w.getObjectReader.abbreviate(tip).name}"
         }
       }
-      val candidates: java.util.List[Candidate] = new java.util.ArrayList[Candidate]
-      val lucky: Ref = tags.get(target)
-      if (lucky != null) return lucky.getName.substring(R_TAGS.length)
-      w.markStart(target)
-      var seen: Int = 0
-      var c: RevCommit = null
-      val loop = new Breaks
-      loop.breakable {
-        c = w.next()
-        while (c != null) {
-          if (!c.hasAny(allFlags)) {
-            val t: Ref = tags.get(c)
-            if (t != null) {
-              val cd: Candidate = new Candidate(c, t)
-              candidates.add(cd)
-              cd.depth = seen
-            }
-          }
-          import scala.collection.JavaConversions._
-          for (cd <- candidates) {
-            if (!cd.reaches(c)) {
-              cd.depth += 1
-              cd.depth - 1
-            }
-          }
-          if (candidates.size >= maxCandidates) loop.break()
-          seen += 1
+      val candidates = new java.util.ArrayList[Candidate]
+      val lucky = tags.get(target)
+      if (lucky != null) lucky.getName.substring(R_TAGS.length)
+      else {
+        w.markStart(target)
+        var seen = 0
+        var c: RevCommit = null
+        val loop = new Breaks
+        loop.breakable {
           c = w.next()
-        }
-      }
-      c = w.next
-      while (c != null) {
-        if (c.hasAll(allFlags)) {
-          for (p <- c.getParents) p.add(RevFlag.SEEN)
-        }
-        else {
-          import scala.collection.JavaConversions._
-          for (cd <- candidates) {
-            if (!cd.reaches(c)) {
-              cd.depth += 1
-              cd.depth - 1
+          while (c != null) {
+            if (!c.hasAny(allFlags)) {
+              val t = tags.get(c)
+              if (t != null) {
+                val cd = new Candidate(c, t)
+                candidates.add(cd)
+                cd.depth = seen
+              }
             }
+            for (cd <- candidates) {
+              if (!cd.reaches(c)) cd.depth += 1
+            }
+            if (candidates.size >= maxCandidates) loop.break()
+            seen += 1
+            c = w.next()
           }
         }
         c = w.next
-      }
-      if (candidates.isEmpty) return null
-      val best: Candidate = Collections.min(candidates, new Comparator[Candidate]() {
-        def compare(o1: Candidate, o2: Candidate): Int = {
-          o1.depth - o2.depth
+        while (c != null) {
+          if (c.hasAll(allFlags)) {
+            for (p <- c.getParents) p.add(RevFlag.SEEN)
+          } else {
+            for (cd <- candidates) {
+              if (!cd.reaches(c)) {
+                cd.depth += 1
+              }
+            }
+          }
+          c = w.next
         }
-      })
-      best.describe(target)
-    }
-    catch {
-      case e: IOException =>
-        throw new JGitInternalException(e.getMessage, e)
+        if (candidates.isEmpty) null
+        else {
+          val best = Collections.min(candidates, new Comparator[Candidate]() {
+            def compare(o1: Candidate, o2: Candidate): Int = o1.depth - o2.depth
+          })
+          best.describe(target)
+        }
+      }
+    } catch {
+      case e: IOException => throw new JGitInternalException(e.getMessage, e)
     } finally {
       setCallable(false)
       w.release()
