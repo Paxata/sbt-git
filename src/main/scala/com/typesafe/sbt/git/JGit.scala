@@ -133,7 +133,7 @@ class FirstParentDescribeCommand(repo_ : Repository) extends GitCommand[String](
   val w = {
     val w = new RevWalk(repo)
     w.setRetainBody(false)
-    w.setRevFilter(RevFilter.MERGE_BASE)
+    w.setRevFilter(RevFilter.NO_MERGES)
     w
   }
   var target: RevCommit = null
