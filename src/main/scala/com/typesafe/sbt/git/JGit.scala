@@ -244,18 +244,9 @@ class FirstParentDescribeCommand(repo_ : Repository) extends GitCommand[String](
 }
 
 class FirstParentRevFilter extends RevFilter {
-  val ignoreCommits = mutable.Set[RevCommit]()
-
   override def include(walker: RevWalk, cmit: RevCommit): Boolean = {
-    if (cmit.getParentCount > 1) {
-      ignoreCommits += cmit.getParent(1)
-    }
-    if (ignoreCommits.contains(cmit)) {
-      ignoreCommits.remove(cmit)
-      false
-    } else {
-      true
-    }
+    if (cmit.getParentCount > 1) cmit.getParents.tail.foreach(_.add(RevFlag.UNINTERESTING))
+    true
   }
 
   override def clone(): FirstParentRevFilter = this

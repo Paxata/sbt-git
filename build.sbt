@@ -9,7 +9,7 @@ lazy val `sbt-git` = project in file(".") enablePlugins (GitVersioning, GitBranc
 git.baseVersion := "0.8"
 
 
-libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit.pgm" % "3.7.0.201502260915-r"
+libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit.pgm" % "3.7.1.201504261725-r"
 
 publishMavenStyle := false
 
