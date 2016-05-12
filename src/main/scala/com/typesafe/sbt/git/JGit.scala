@@ -133,7 +133,7 @@ class FirstParentDescribeCommand(repo_ : Repository) extends GitCommand[String](
   val w = {
     val w = new RevWalk(repo)
     w.setRetainBody(false)
-    w.setRevFilter(new FirstParentRevFilter())
+    w.setRevFilter(RevFilter.MERGE_BASE)
     w
   }
   var target: RevCommit = null
@@ -230,13 +230,4 @@ class FirstParentDescribeCommand(repo_ : Repository) extends GitCommand[String](
       w.release()
     }
   }
-}
-
-class FirstParentRevFilter extends RevFilter {
-  override def include(walker: RevWalk, cmit: RevCommit): Boolean = {
-    if (cmit.getParentCount > 1) cmit.getParents.tail.foreach(_.add(RevFlag.UNINTERESTING))
-    true
-  }
-
-  override def clone(): FirstParentRevFilter = this
 }
