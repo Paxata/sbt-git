@@ -16,6 +16,7 @@ object SbtGit {
     val gitCurrentTags = SettingKey[Seq[String]]("git-current-tags", "The tags associated with this commit.")
     val gitHeadCommit = SettingKey[Option[String]]("git-head-commit", "The commit sha for the top commit of this project.")
     val gitDescribedVersion = SettingKey[Option[String]]("git-described-version", "Version as returned by `git describe --tags`.")
+    val gitFirstParentDescribedVersion = SettingKey[Option[String]]("git-first-parent-described-version", "Version as returned by `git describe --tags --first-parent`.")
     val gitUncommittedChanges = SettingKey[Boolean]("git-uncommitted-changes", "Whether there are uncommitted changes.")
     
     // A Mechanism to run Git directly.
@@ -111,6 +112,7 @@ object SbtGit {
     gitHeadCommit := gitReader.value.withGit(_.headCommitSha),
     gitTagToVersionNumber := git.defaultTagByVersionStrategy,
     gitDescribedVersion := gitReader.value.withGit(_.describedVersion).map(v => git.gitTagToVersionNumber.value(v).getOrElse(v)),
+    gitFirstParentDescribedVersion := gitReader.value.withGit(_.firstParentDescribedVersion).map(v => git.gitTagToVersionNumber.value(v).getOrElse(v)),
     gitCurrentTags := gitReader.value.withGit(_.currentTags),
     gitCurrentBranch := Option(gitReader.value.withGit(_.branch)).getOrElse(""),
     gitUncommittedChanges in ThisBuild := gitReader.value.withGit(_.hasUncommittedChanges)
@@ -186,6 +188,7 @@ object SbtGit {
     val gitHeadCommit = GitKeys.gitHeadCommit in ThisBuild
     val useGitDescribe = GitKeys.useGitDescribe in ThisBuild
     val gitDescribedVersion = GitKeys.gitDescribedVersion in ThisBuild
+    val gitFirstParentDescribedVersion = GitKeys.gitFirstParentDescribedVersion in ThisBuild
     val gitCurrentTags = GitKeys.gitCurrentTags in ThisBuild
     val gitCurrentBranch = GitKeys.gitCurrentBranch in ThisBuild
     val gitTagToVersionNumber = GitKeys.gitTagToVersionNumber in ThisBuild

@@ -4,7 +4,8 @@ name := "sbt-git"
 organization := "com.typesafe.sbt"
 
 
-enablePlugins(GitVersioning)
+lazy val `sbt-git` = project in file(".") enablePlugins (GitVersioning, GitBranchPrompt)
+
 git.baseVersion := "0.8"
 
 
