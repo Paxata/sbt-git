@@ -14,6 +14,7 @@ import org.eclipse.jgit.revwalk.{RevCommit, RevFlag, RevFlagSet, RevWalk}
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 import scala.util.Try
 import scala.util.control.Breaks
 
@@ -133,7 +134,7 @@ class FirstParentDescribeCommand(repo_ : Repository) extends GitCommand[String](
   val w = {
     val w = new RevWalk(repo)
     w.setRetainBody(false)
-    w.setRevFilter(RevFilter.NO_MERGES)
+    w.setRevFilter(new FirstParentRevFilter())
     w
   }
   var target: RevCommit = null
@@ -230,4 +231,23 @@ class FirstParentDescribeCommand(repo_ : Repository) extends GitCommand[String](
       w.release()
     }
   }
+}
+
+class FirstParentRevFilter extends RevFilter {
+  val ignored = mutable.Set[RevCommit]()
+
+  override def include(walker: RevWalk, cmit: RevCommit): Boolean = {
+    if (cmit.getParentCount > 1) {
+      ignored += cmit.getParent(1)
+    }
+    if (ignored.contains(cmit)) {
+      ignored -= cmit
+      ignored ++= cmit.getParents
+      false
+    } else {
+      true
+    }
+  }
+
+  override def clone(): FirstParentRevFilter = this
 }
